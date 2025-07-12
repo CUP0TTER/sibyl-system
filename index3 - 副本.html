@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>声如其人 - 基于语音分析的情绪感知系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#f59e0b',
+                        accent: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .wave-animation {
+            animation: wave 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes wave {
+            0% { transform: scaleY(1); }
+            100% { transform: scaleY(1.5); }
+        }
+        
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 主容器 -->
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- 头部导航 -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between bg-white rounded-2xl p-6 card-shadow">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">声如其人</h1>
+                        <p class="text-gray-500 text-sm">基于语音分析的情绪感知系统</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
+                    <button class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="space-y-8">
+            <!-- 初始状态 - 准备录音 -->
+            <div id="initial-state" class="bg-white rounded-2xl p-8 card-shadow">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">开始语音情绪分析</h2>
+                    <p class="text-gray-600">请准备好朗读下方文本，点击开始按钮开始录音分析</p>
+                </div>
+
+                <!-- 朗读文本区域 -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        朗读文本
+                    </h3>
+                    <div class="bg-white rounded-lg p-6 shadow-sm">
+                        <p class="text-gray-700 text-lg leading-relaxed">
+                            今天是一个美好的日子，阳光明媚，微风轻拂。我感到非常开心和充满活力。
+                            工作进展顺利，同事们都很友善，我对未来充满了希望和期待。
+                            生活中的小幸福让我感到特别温暖，比如清晨的咖啡香味，午后的阳光，
+                            以及和家人朋友在一起的美好时光。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 录音控制区域 -->
+                <div class="text-center">
+                    <button id="start-recording" class="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-4 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <svg class="w-6 h-6 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                        开始录音
+                    </button>
+                    <p class="text-gray-500 text-sm mt-4">点击按钮开始录音，然后大声朗读上方文本</p>
+                </div>
+            </div>
+
+            <!-- 录音状态 -->
+            <div id="recording-state" class="bg-white rounded-2xl p-8 card-shadow hidden">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">正在录音中...</h2>
+                    <p class="text-gray-600">请大声朗读文本内容</p>
+                </div>
+
+                <!-- 录音视觉效果 -->
+                <div class="flex justify-center mb-8">
+                    <div class="relative">
+                        <div class="w-32 h-32 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center pulse-ring"></div>
+                        <div class="absolute inset-0 w-32 h-32 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center">
+                            <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 音频波形模拟 -->
+                <div class="flex justify-center items-end space-x-1 mb-8">
+                    <div class="w-2 h-8 bg-red-400 rounded wave-animation" style="animation-delay: 0s;"></div>
+                    <div class="w-2 h-12 bg-red-500 rounded wave-animation" style="animation-delay: 0.1s;"></div>
+                    <div class="w-2 h-6 bg-red-400 rounded wave-animation" style="animation-delay: 0.2s;"></div>
+                    <div class="w-2 h-16 bg-red-600 rounded wave-animation" style="animation-delay: 0.3s;"></div>
+                    <div class="w-2 h-10 bg-red-500 rounded wave-animation" style="animation-delay: 0.4s;"></div>
+                    <div class="w-2 h-14 bg-red-500 rounded wave-animation" style="animation-delay: 0.5s;"></div>
+                    <div class="w-2 h-8 bg-red-400 rounded wave-animation" style="animation-delay: 0.6s;"></div>
+                </div>
+
+                <!-- 录音计时器 -->
+                <div class="text-center mb-8">
+                    <div class="text-4xl font-bold text-red-500" id="timer">00:00</div>
+                    <p class="text-gray-500 text-sm mt-2">录音时长</p>
+                </div>
+
+                <!-- 朗读文本提示 -->
+                <div class="bg-gray-50 rounded-xl p-6 mb-8">
+                    <p class="text-gray-700 text-lg leading-relaxed">
+                        今天是一个美好的日子，阳光明媚，微风轻拂。我感到非常开心和充满活力。
+                        工作进展顺利，同事们都很友善，我对未来充满了希望和期待。
+                        生活中的小幸福让我感到特别温暖，比如清晨的咖啡香味，午后的阳光，
+                        以及和家人朋友在一起的美好时光。
+                    </p>
+                </div>
+
+                <div class="text-center">
+                    <button id="stop-recording" class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-4 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <svg class="w-6 h-6 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"></path>
+                        </svg>
+                        停止录音
+                    </button>
+                </div>
+            </div>
+
+            <!-- 分析状态 -->
+            <div id="analyzing-state" class="bg-white rounded-2xl p-8 card-shadow hidden">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">正在分析情绪...</h2>
+                    <p class="text-gray-600">AI正在分析您的语音情绪特征，请稍候</p>
+                </div>
+
+                <div class="flex justify-center mb-8">
+                    <div class="relative">
+                        <div class="w-24 h-24 border-4 border-primary border-opacity-30 rounded-full"></div>
+                        <div class="absolute inset-0 w-24 h-24 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
+                        <span class="text-gray-600">提取语音特征...</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-2 h-2 bg-accent rounded-full animate-pulse" style="animation-delay: 0.5s;"></div>
+                        <span class="text-gray-600">分析情绪模式...</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-2 h-2 bg-accent rounded-full animate-pulse" style="animation-delay: 1s;"></div>
+                        <span class="text-gray-600">生成情绪报告...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果展示状态 -->
+            <div id="result-state" class="bg-white rounded-2xl p-8 card-shadow hidden">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">情绪分析结果</h2>
+                    <p class="text-gray-600">AI已完成对您语音的情绪分析</p>
+                </div>
+
+                <!-- 情绪表情图片 - 居中显示 -->
+                <div class="text-center">
+                    <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-8 mb-6 inline-block">
+                        <img src="https://images.unsplash.com/photo-1542596594-649edbc13630?w=300&h=300&fit=crop&crop=face" 
+                             alt="Happy Expression" 
+                             class="w-64 h-64 mx-auto rounded-full object-cover shadow-lg">
+                    </div>
+                    <h3 class="text-3xl font-bold text-yellow-600 mb-3">😊 开心愉悦</h3>
+                    <p class="text-gray-600 text-lg">主要情绪状态</p>
+                </div>
+
+                <!-- 情绪文本描述 -->
+                <div class="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-4">AI情绪评估</h4>
+                    <p class="text-gray-700 leading-relaxed">
+                        根据您的语音分析，您目前处于一个非常积极和开心的情绪状态。您的语调明亮，
+                        语速适中，音量充满活力。这表明您心情愉悦，对生活充满正能量。
+                        您的语音中透露出自信和满足感，这是一种很好的情绪状态。
+                        建议您保持这种积极的心态，继续享受生活中的美好时光。
+                    </p>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="mt-8 flex justify-center space-x-4">
+                    <button id="new-analysis" class="bg-gradient-to-r from-primary to-purple-600 hover:from-primary-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        重新分析
+                    </button>
+                    <button class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        保存结果
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- 底部信息 -->
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <div class="flex items-center justify-center space-x-4 mb-4">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBzdHJva2U9IiMxRDRFRDgiIHN0cm9rZS13aWR0aD0iMiIvPgo8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIzOCIgZmlsbD0iI0Y5RkFGQiIvPgo8cGF0aCBkPSJNMzAgMzVDMzIgMzAgMzggMjggNDUgMzJDNDggMzQgNTAgMzYgNTAgNDBDNTAgMzYgNTIgMzQgNTUgMzJDNjIgMjggNjggMzAgNzAgMzVDNzIgNDAgNzAgNDUgNjUgNTBDNjIgNTIgNTggNTQgNTUgNTZDNTMgNTggNTEgNjAgNTAgNjJDNDkgNjAgNDcgNTggNDUgNTZDNDIgNTQgMzggNTIgMzUgNTBDMzAgNDUgMjggNDAgMzAgMzVaIiBmaWxsPSIjMUQ0RUQ4Ii8+CjxwYXRoIGQ9Ik00NSA2NEM0NSA2NiA0NyA2OCA1MCA2OEM1MyA2OCA1NSA2NiA1NSA2NEM1NSA2MiA1MyA2MCA1MCA2MEM0NyA2MCA0NSA2MiA0NSA2NFoiIGZpbGw9IiMxRDRFRDgiLz4KPHRleHQgeD0iNTAiIHk9IjgyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMUQ0RUQ4IiBmb250LXNpemU9IjgiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiI+MTkyOTwvdGV4dD4KPHRleHQgeD0iNTAiIHk9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMUQ0RUQ4IiBmb250LXNpemU9IjYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiI+5Lit56eR5a2m6Zmi5b+D55CG56CU56m2PC90ZXh0Pgo8dGV4dCB4PSI1MCIgeT0iOTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMxRDRFRDgiIGZvbnQtc2l6ZT0iNiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIj5JTlNUSVRVVEUgT0YgUFNZQ0hPTE9HWSBDQVM8L3RleHQ+Cjwvc3ZnPgo=" 
+                     alt="中科院心理研究所" 
+                     class="w-12 h-12 opacity-60">
+                <div class="text-left">
+                    <div class="text-gray-600 font-medium">技术支持</div>
+                    <div class="text-xs text-gray-500">中科院心理研究所</div>
+                </div>
+            </div>
+            <p>© 2024 EmotionVoice - 智能语音情绪分析系统</p>
+        </footer>
+    </div>
+
+    <script>
+        // 状态管理
+        const states = {
+            initial: document.getElementById('initial-state'),
+            recording: document.getElementById('recording-state'),
+            analyzing: document.getElementById('analyzing-state'),
+            result: document.getElementById('result-state')
+        };
+
+        // 按钮元素
+        const startBtn = document.getElementById('start-recording');
+        const stopBtn = document.getElementById('stop-recording');
+        const newAnalysisBtn = document.getElementById('new-analysis');
+        const timerElement = document.getElementById('timer');
+
+        // 计时器变量
+        let recordingTimer;
+        let recordingTime = 0;
+
+        // 状态切换函数
+        function showState(stateName) {
+            Object.values(states).forEach(state => state.classList.add('hidden'));
+            states[stateName].classList.remove('hidden');
+            states[stateName].classList.add('fade-in');
+        }
+
+        // 格式化时间
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 开始录音
+        startBtn.addEventListener('click', () => {
+            showState('recording');
+            recordingTime = 0;
+            
+            recordingTimer = setInterval(() => {
+                recordingTime++;
+                timerElement.textContent = formatTime(recordingTime);
+            }, 1000);
+        });
+
+        // 停止录音
+        stopBtn.addEventListener('click', () => {
+            clearInterval(recordingTimer);
+            showState('analyzing');
+            
+            // 模拟分析过程
+            setTimeout(() => {
+                showState('result');
+            }, 3000);
+        });
+
+        // 重新分析
+        newAnalysisBtn.addEventListener('click', () => {
+            showState('initial');
+        });
+
+        // 页面加载时显示初始状态
+        window.addEventListener('load', () => {
+            showState('initial');
+        });
+    </script>
+</body>
+</html>
