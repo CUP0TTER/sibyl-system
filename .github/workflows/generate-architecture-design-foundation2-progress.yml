@@ -1,0 +1,113 @@
+name: Generate architecture design foundation II progress
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-progress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install document tools
+        run: |
+          pip install python-docx pillow
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-writer poppler-utils
+
+      - name: Generate progress table
+        run: python tools/generate_arch_design_foundation2_progress.py
+
+      - name: Validate DOCX structure and content
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from docx import Document
+
+          path = Path('generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_2024春.docx')
+          assert path.exists() and path.stat().st_size > 10000
+          with ZipFile(path) as z:
+              assert 'word/document.xml' in z.namelist()
+          doc = Document(path)
+          assert len(doc.tables) >= 6
+          text = '\n'.join(p.text for p in doc.paragraphs) + '\n' + '\n'.join(
+              c.text for t in doc.tables for row in t.rows for c in row.cells
+          )
+          checks = ['建筑设计基础2', '2023级建筑学', '杨巧梅、周枳辛', '1B-305',
+                    '2024年2月26日', '96学时', '48学时', '模型制作实践（二）与课程总结']
+          for item in checks:
+              assert item in text, item
+          for week in range(1,17):
+              assert str(week) in text
+          print('DOCX OK:', path, path.stat().st_size, 'tables=', len(doc.tables))
+          PY
+
+      - name: Render to PDF
+        run: |
+          mkdir -p rendered
+          libreoffice --headless --convert-to pdf --outdir rendered generated/建筑设计基础2/*.docx
+          pdfinfo rendered/*.pdf | tee rendered/pdfinfo.txt
+          test "$(pdfinfo rendered/*.pdf | awk '/^Pages:/ {print $2}')" = "2"
+          pdftoppm -png -r 120 rendered/*.pdf rendered/page
+
+      - name: Image-level layout checks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageChops
+
+          images = sorted(Path('rendered').glob('page-*.png'))
+          assert len(images) == 2, images
+          for image_path in images:
+              im = Image.open(image_path).convert('L')
+              # Content bounding box relative to white background.
+              bg = Image.new('L', im.size, 255)
+              diff = ImageChops.difference(im, bg)
+              bbox = diff.point(lambda p: 255 if p > 18 else 0).getbbox()
+              assert bbox is not None, image_path
+              left, top, right, bottom = bbox
+              # Require a safe printable margin on all sides and reject mostly blank pages.
+              assert left >= 8 and top >= 8 and right <= im.width-8 and bottom <= im.height-8, (image_path, bbox, im.size)
+              coverage = ((right-left)*(bottom-top))/(im.width*im.height)
+              assert coverage > 0.35, (image_path, coverage)
+              print(image_path, im.size, bbox, coverage)
+          PY
+
+      - name: Commit generated file
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/建筑设计基础2/*.docx
+          if ! git diff --cached --quiet; then
+            git commit -m 'Generate architecture design foundation II progress table'
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
+
+      - name: Upload DOCX
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-design-foundation2-progress-docx
+          path: generated/建筑设计基础2/*.docx
+          if-no-files-found: error
+
+      - name: Upload rendered preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-design-foundation2-progress-preview
+          path: rendered/*
+          if-no-files-found: error
