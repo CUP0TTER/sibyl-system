@@ -1,0 +1,67 @@
+name: Generate teaching documents
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install python-docx
+
+      - name: Generate DOCX files
+        run: python tools/generate_construction_drawing_docs.py
+
+      - name: Validate generated files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from docx import Document
+
+          out = Path('generated/施工图设计')
+          files = sorted(out.glob('*.docx'))
+          assert len(files) == 5, files
+          for path in files:
+              assert path.stat().st_size > 10000, (path, path.stat().st_size)
+              with ZipFile(path) as z:
+                  assert 'word/document.xml' in z.namelist()
+              doc = Document(path)
+              text = '\n'.join(p.text for p in doc.paragraphs)
+              assert '施工图设计' in text or any('施工图设计' in c.text for t in doc.tables for row in t.rows for c in row.cells)
+              print(path, path.stat().st_size, len(doc.paragraphs), len(doc.tables))
+          PY
+
+      - name: Commit generated files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/施工图设计/*.docx
+          if ! git diff --cached --quiet; then
+            git commit -m 'Generate construction drawing teaching documents'
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
+
+      - name: Upload generated documents
+        uses: actions/upload-artifact@v4
+        with:
+          name: construction-drawing-teaching-documents
+          path: generated/施工图设计/*.docx
+          if-no-files-found: error
