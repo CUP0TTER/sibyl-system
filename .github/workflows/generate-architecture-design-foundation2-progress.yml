@@ -25,7 +25,7 @@ jobs:
 
       - name: Install document tools
         run: |
-          pip install python-docx pillow
+          pip install python-docx pillow lxml
           sudo apt-get update
           sudo apt-get install -y libreoffice-writer poppler-utils
 
@@ -38,17 +38,18 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile
           from docx import Document
+          from lxml import etree
 
           path = Path('generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_2024春.docx')
           assert path.exists() and path.stat().st_size > 10000
           with ZipFile(path) as z:
-              assert 'word/document.xml' in z.namelist()
+              xml = z.read('word/document.xml')
+          root = etree.fromstring(xml)
+          ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+          text = ''.join(root.xpath('//w:t/text()', namespaces=ns))
+
           doc = Document(path)
-          # Two page-heading tables and two progress tables; summary boxes are nested tables.
           assert len(doc.tables) >= 4, len(doc.tables)
-          text = '\n'.join(p.text for p in doc.paragraphs) + '\n' + '\n'.join(
-              c.text for t in doc.tables for row in t.rows for c in row.cells
-          )
           checks = ['建筑设计基础2', '2023级建筑学', '杨巧梅、周枳辛', '1B-305',
                     '2024年2月26日', '96学时', '48学时', '模型制作实践（二）与课程总结']
           for item in checks:
