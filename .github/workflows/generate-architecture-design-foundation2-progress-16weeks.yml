@@ -62,7 +62,7 @@ jobs:
               assert item in all_text, item
           for item in ['建筑设计基础2', '2023级建筑学', '杨巧梅、周枳辛', '1B-305',
                        '计划总学时96学时', '理论课学时48学时', '实验课学时48学时',
-                       '2024年2月26日', '2024年6月10日', '模型制作实践（二）与课程总结']:
+                       '2024年2月26日', '模型制作实践（二）与课程总结']:
               assert item.replace(' ', '') in all_text.replace(' ', ''), item
 
           # 逐行核验第1—16周均存在，且每周左右两栏时数均为3。
@@ -75,6 +75,12 @@ jobs:
               assert left_week == str(week), (week, left_week)
               assert right_week == str(week), (week, right_week)
               assert left_hours == '3' and right_hours == '3', (week, left_hours, right_hours)
+
+          # 核验第16周实际日期：周一6月10日、周三6月12日。
+          last = table.rows[17].cells
+          assert last[3].text.strip() == '2024'
+          assert last[4].text.strip() == '6' and last[5].text.strip() == '10'
+          assert last[12].text.strip() == '6' and last[13].text.strip() == '12'
           print('DOCX structure/content OK:', path, path.stat().st_size)
           PY
 
