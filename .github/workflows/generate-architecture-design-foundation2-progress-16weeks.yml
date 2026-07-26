@@ -1,0 +1,123 @@
+name: Generate architecture design foundation II progress 16 weeks
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-progress-16weeks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install document tools
+        run: |
+          pip install python-docx pillow lxml
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-writer poppler-utils
+
+      - name: Generate corrected progress table
+        run: python tools/generate_arch_design_foundation2_progress_16weeks.py
+
+      - name: Validate 16 weeks and 96 hours
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from docx import Document
+          from lxml import etree
+
+          path = Path('generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_16周96学时_严格模板版.docx')
+          assert path.exists() and path.stat().st_size > 10000, path
+          with ZipFile(path) as z:
+              xml = z.read('word/document.xml')
+          root = etree.fromstring(xml)
+          ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+          all_text = ''.join(root.xpath('//w:t/text()', namespaces=ns))
+
+          doc = Document(path)
+          main_tables = [t for t in doc.tables if len(t.columns) == 17]
+          assert len(main_tables) == 1, len(main_tables)
+          table = main_tables[0]
+          assert len(table.rows) == 18, len(table.rows)  # 2行表头+16周
+
+          expected_headers = [
+              '理论课教学安排', '实验课教学安排', '教师姓名', '职称', '周次', '年', '月', '日',
+              '时数', '讲课章节及内容', '备注', '实验、实践内容', '学生分组'
+          ]
+          for item in expected_headers:
+              assert item in all_text, item
+          for item in ['建筑设计基础2', '2023级建筑学', '杨巧梅、周枳辛', '1B-305',
+                       '计划总学时96学时', '理论课学时48学时', '实验课学时48学时',
+                       '2024年2月26日', '2024年6月10日', '模型制作实践（二）与课程总结']:
+              assert item.replace(' ', '') in all_text.replace(' ', ''), item
+
+          # 逐行核验第1—16周均存在，且每周左右两栏时数均为3。
+          for week in range(1, 17):
+              cells = table.rows[week + 1].cells
+              left_week = cells[2].text.strip()
+              right_week = cells[11].text.strip()
+              left_hours = cells[6].text.strip()
+              right_hours = cells[14].text.strip()
+              assert left_week == str(week), (week, left_week)
+              assert right_week == str(week), (week, right_week)
+              assert left_hours == '3' and right_hours == '3', (week, left_hours, right_hours)
+          print('DOCX structure/content OK:', path, path.stat().st_size)
+          PY
+
+      - name: Render and verify two pages
+        run: |
+          rm -rf rendered16 && mkdir -p rendered16
+          libreoffice --headless --convert-to pdf --outdir rendered16 generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_16周96学时_严格模板版.docx
+          pdfinfo rendered16/*.pdf | tee rendered16/pdfinfo.txt
+          test "$(pdfinfo rendered16/*.pdf | awk '/^Pages:/ {print $2}')" = "2"
+          pdftotext -layout rendered16/*.pdf rendered16/progress.txt
+          grep -q '16' rendered16/progress.txt
+          grep -q '96' rendered16/progress.txt
+          pdftoppm -png -r 120 rendered16/*.pdf rendered16/page
+
+      - name: Image-level layout checks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageChops
+
+          images = sorted(Path('rendered16').glob('page-*.png'))
+          assert len(images) == 2, images
+          for image_path in images:
+              im = Image.open(image_path).convert('L')
+              bg = Image.new('L', im.size, 255)
+              diff = ImageChops.difference(im, bg)
+              bbox = diff.point(lambda p: 255 if p > 18 else 0).getbbox()
+              assert bbox is not None, image_path
+              left, top, right, bottom = bbox
+              assert left >= 5 and top >= 5 and right <= im.width - 5 and bottom <= im.height - 5, (image_path, bbox, im.size)
+              print(image_path, im.size, bbox)
+          PY
+
+      - name: Upload corrected DOCX
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-design-foundation2-progress-16weeks-docx
+          path: generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_16周96学时_严格模板版.docx
+          if-no-files-found: error
+
+      - name: Upload rendered preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-design-foundation2-progress-16weeks-preview
+          path: rendered16/*
+          if-no-files-found: error
