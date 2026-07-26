@@ -135,21 +135,27 @@ def add_heading(doc, continuation=False):
     top = doc.add_table(rows=1, cols=2)
     top.alignment = WD_TABLE_ALIGNMENT.CENTER
     top.autofit = False
-    set_cell_width(top.cell(0,0), 23.5)
-    set_cell_width(top.cell(0,1), 4.5)
-    top.cell(0,0).text = ''
-    p = top.cell(0,0).paragraphs[0]
+    set_cell_width(top.cell(0, 0), 23.5)
+    set_cell_width(top.cell(0, 1), 4.5)
+
+    top.cell(0, 0).text = ''
+    p = top.cell(0, 0).paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r = p.add_run('附件3：城乡规划教研室\n教学进度表' + ('（续）' if continuation else ''))
     font(r, size=15 if not continuation else 13, bold=True, name='黑体')
 
-    summary = top.cell(0,1)
+    summary = top.cell(0, 1)
     summary.text = ''
     st = summary.add_table(rows=3, cols=2)
     st.style = 'Table Grid'
-    for i, (a,b) in enumerate([('计划总学时','96学时'),('理论课学时','48学时'),('实验课学时','48学时')]):
-        cell_text(st.cell(i,0), a, 8.2, True)
-        cell_text(st.cell(i,1), b, 8.2)
+    for i, (a, b) in enumerate([
+        ('计划总学时', '96学时'),
+        ('理论课学时', '48学时'),
+        ('实验课学时', '48学时'),
+    ]):
+        cell_text(st.cell(i, 0), a, 8.2, True)
+        cell_text(st.cell(i, 1), b, 8.2)
+
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(2)
     p.paragraph_format.space_after = Pt(2)
@@ -158,53 +164,66 @@ def add_heading(doc, continuation=False):
 
 
 def add_progress_table(doc, weeks):
-    widths = [1.35, 1.0, 0.62, 0.62, 0.48, 0.48, 0.52, 0.62, 6.15, 0.75,
-              1.35, 1.0, 0.62, 0.48, 0.48, 0.62, 5.55, 0.8]
-    table = doc.add_table(rows=2, cols=18)
+    # 9 theory columns + 8 practice columns, matching the supplied template.
+    widths = [1.45, 0.88, 0.58, 0.58, 0.43, 0.43, 0.52, 6.75, 0.72,
+              1.45, 0.88, 0.58, 0.43, 0.43, 0.52, 5.95, 0.78]
+    table = doc.add_table(rows=2, cols=17)
     table.style = 'Table Grid'
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
     fixed_layout(table)
+
     for row in table.rows:
         for i, c in enumerate(row.cells):
             set_cell_width(c, widths[i])
             margins(c)
 
-    cell_text(table.cell(0,0), '理论课教学安排', 9, True)
-    table.cell(0,0).merge(table.cell(0,9))
-    shade(table.cell(0,0), 'D9EAF7')
-    cell_text(table.cell(0,10), '实验课教学安排', 9, True)
-    table.cell(0,10).merge(table.cell(0,17))
-    shade(table.cell(0,10), 'D9EAF7')
+    cell_text(table.cell(0, 0), '理论课教学安排', 9, True)
+    table.cell(0, 0).merge(table.cell(0, 8))
+    shade(table.cell(0, 0), 'D9EAF7')
 
-    headers = ['教师姓名','职称','周次','年','月','日','时数','讲课章节及内容','备注','',
-               '教师姓名','职称','周次','月','日','时数','实验、实践内容','学生分组']
-    # Merge empty auxiliary column into theory content/remarks area to match wide template proportions.
+    cell_text(table.cell(0, 9), '实验课教学安排', 9, True)
+    table.cell(0, 9).merge(table.cell(0, 16))
+    shade(table.cell(0, 9), 'D9EAF7')
+
+    headers = [
+        '教师姓名', '职称', '周次', '年', '月', '日', '时数', '讲课章节及内容', '备注',
+        '教师姓名', '职称', '周次', '月', '日', '时数', '实验、实践内容', '学生分组',
+    ]
     for i, h in enumerate(headers):
-        cell_text(table.cell(1,i), h, 7.4, True)
-        shade(table.cell(1,i), 'EAF2F8')
-    # Use columns 7-8 for theory content and remarks; col9 is kept as narrow spacer/remarks continuation.
-    cell_text(table.cell(1,8), '讲课章节及内容', 7.4, True)
-    cell_text(table.cell(1,9), '备注', 7.4, True)
-    repeat_header(table.rows[0]); repeat_header(table.rows[1])
+        cell_text(table.cell(1, i), h, 7.4, True)
+        shade(table.cell(1, i), 'EAF2F8')
+    repeat_header(table.rows[0])
+    repeat_header(table.rows[1])
 
     for w in weeks:
-        monday = START + timedelta(weeks=w-1)
+        monday = START + timedelta(weeks=w - 1)
         wednesday = monday + timedelta(days=2)
         row = table.add_row()
         cells = row.cells
         for i, c in enumerate(cells):
-            set_cell_width(c, widths[i]); margins(c)
+            set_cell_width(c, widths[i])
+            margins(c)
+
         values = [
-            TEACHERS, '', w, monday.year, monday.month, monday.day, 3, '', THEORY[w-1], '',
-            TEACHERS, '', w, wednesday.month, wednesday.day, 3, PRACTICE[w-1], ''
+            TEACHERS, '', w, monday.year, monday.month, monday.day, 3, THEORY[w - 1], '',
+            TEACHERS, '', w, wednesday.month, wednesday.day, 3, PRACTICE[w - 1], '',
         ]
         for i, value in enumerate(values):
-            align = WD_ALIGN_PARAGRAPH.LEFT if i in (8,16) else WD_ALIGN_PARAGRAPH.CENTER
-            size = 7.0 if i in (8,16) else 7.2
+            align = WD_ALIGN_PARAGRAPH.LEFT if i in (7, 15) else WD_ALIGN_PARAGRAPH.CENTER
+            size = 6.9 if i in (7, 15) else 7.2
             cell_text(cells[i], value, size=size, align=align)
-        row.height = Cm(1.38)
+        row.height = Cm(1.42)
+
     return table
+
+
+def add_footer(doc):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(3)
+    p.paragraph_format.space_after = Pt(0)
+    r = p.add_run('上课时间/地点：周一下午第5、6、7节（理论课），周三第7、8、9节（实验、实践课）/1B-305')
+    font(r, size=8.6)
 
 
 def build():
@@ -216,31 +235,23 @@ def build():
     sec.bottom_margin = Cm(0.65)
     sec.left_margin = Cm(0.55)
     sec.right_margin = Cm(0.55)
+
     doc.styles['Normal'].font.name = '宋体'
     doc.styles['Normal']._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
     doc.styles['Normal'].font.size = Pt(8)
 
     add_heading(doc, False)
-    add_progress_table(doc, range(1,9))
-
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(3)
-    p.paragraph_format.space_after = Pt(0)
-    r = p.add_run('上课时间/地点：周一下午第5、6、7节（理论课），周三第7、8、9节（实验、实践课）/1B-305')
-    font(r, size=8.6)
+    add_progress_table(doc, range(1, 9))
+    add_footer(doc)
 
     doc.add_page_break()
     add_heading(doc, True)
-    add_progress_table(doc, range(9,17))
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(3)
-    p.paragraph_format.space_after = Pt(0)
-    r = p.add_run('上课时间/地点：周一下午第5、6、7节（理论课），周三第7、8、9节（实验、实践课）/1B-305')
-    font(r, size=8.6)
+    add_progress_table(doc, range(9, 17))
+    add_footer(doc)
 
     doc.core_properties.title = '建筑设计基础2教学进度表'
     doc.core_properties.subject = '2023级建筑学，2024年春季学期，96学时'
-    doc.core_properties.author = '杨巧梅、周枳辛'
+    doc.core_properties.author = TEACHERS
     doc.save(OUTPUT)
     print(OUTPUT, OUTPUT.stat().st_size)
 
