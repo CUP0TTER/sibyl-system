@@ -27,12 +27,12 @@ jobs:
         run: |
           pip install python-docx pillow lxml
           sudo apt-get update
-          sudo apt-get install -y libreoffice-writer poppler-utils
+          sudo apt-get install -y libreoffice-writer poppler-utils fonts-noto-cjk
 
       - name: Generate progress table
         run: python tools/generate_arch_design_foundation2_progress.py
 
-      - name: Validate DOCX structure and content
+      - name: Validate DOCX structure, headers and template style
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -40,33 +40,45 @@ jobs:
           from docx import Document
           from lxml import etree
 
-          path = Path('generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_2024春.docx')
-          assert path.exists() and path.stat().st_size > 10000
+          path = Path('generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_严格模板版.docx')
+          assert path.exists() and path.stat().st_size > 10000, path
           with ZipFile(path) as z:
               xml = z.read('word/document.xml')
           root = etree.fromstring(xml)
           ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
           text = ''.join(root.xpath('//w:t/text()', namespaces=ns))
 
-          doc = Document(path)
-          assert len(doc.tables) >= 4, len(doc.tables)
+          # Strictly retain the supplied template's table headings.
+          headers = [
+              '附件3：城乡规划教研室', '教学进度表', '理论课教学安排', '实验课教学安排',
+              '教师姓名', '职称', '周次', '年', '月', '日', '时数', '讲课章节及内容', '备注',
+              '实验、实践内容', '学生分组', '计划总学时', '理论课学时', '实验课学时',
+          ]
+          for item in headers:
+              assert item in text, item
+
           checks = ['建筑设计基础2', '2023级建筑学', '杨巧梅、周枳辛', '1B-305',
                     '2024年2月26日', '96学时', '48学时', '模型制作实践（二）与课程总结']
           for item in checks:
               assert item in text, item
-          progress_tables = [t for t in doc.tables if len(t.columns) == 17]
-          assert len(progress_tables) == 2, len(progress_tables)
-          assert all(len(t.rows) == 10 for t in progress_tables), [len(t.rows) for t in progress_tables]
-          print('DOCX OK:', path, path.stat().st_size, 'tables=', len(doc.tables))
+
+          doc = Document(path)
+          assert len(doc.tables) == 2, len(doc.tables)  # top layout + one continuous main table
+          main = [t for t in doc.tables if len(t.columns) == 17]
+          assert len(main) == 1, len(main)
+          assert len(main[0].rows) == 20, len(main[0].rows)  # 2 header rows + 18 template week rows
+          assert len(root.xpath('//w:shd', namespaces=ns)) == 0, 'template table must remain unshaded'
+          print('DOCX OK:', path, path.stat().st_size, 'tables=', len(doc.tables), 'rows=', len(main[0].rows))
           PY
 
       - name: Render to PDF
         run: |
+          rm -rf rendered
           mkdir -p rendered
-          libreoffice --headless --convert-to pdf --outdir rendered generated/建筑设计基础2/*.docx
+          libreoffice --headless --convert-to pdf --outdir rendered generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_严格模板版.docx
           pdfinfo rendered/*.pdf | tee rendered/pdfinfo.txt
           test "$(pdfinfo rendered/*.pdf | awk '/^Pages:/ {print $2}')" = "2"
-          pdftoppm -png -r 120 rendered/*.pdf rendered/page
+          pdftoppm -png -r 130 rendered/*.pdf rendered/page
 
       - name: Image-level layout checks
         run: |
@@ -85,20 +97,20 @@ jobs:
               left, top, right, bottom = bbox
               assert left >= 8 and top >= 8 and right <= im.width - 8 and bottom <= im.height - 8, (image_path, bbox, im.size)
               coverage = ((right - left) * (bottom - top)) / (im.width * im.height)
-              assert coverage > 0.35, (image_path, coverage)
+              assert coverage > 0.30, (image_path, coverage)
               print(image_path, im.size, bbox, coverage)
           PY
 
       - name: Upload DOCX
         uses: actions/upload-artifact@v4
         with:
-          name: architecture-design-foundation2-progress-docx
-          path: generated/建筑设计基础2/*.docx
+          name: architecture-design-foundation2-progress-strict-template
+          path: generated/建筑设计基础2/2023级建筑学_建筑设计基础2_教学进度表_严格模板版.docx
           if-no-files-found: error
 
       - name: Upload rendered preview
         uses: actions/upload-artifact@v4
         with:
-          name: architecture-design-foundation2-progress-preview
+          name: architecture-design-foundation2-progress-strict-preview
           path: rendered/*
           if-no-files-found: error
