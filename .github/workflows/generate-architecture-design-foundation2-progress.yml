@@ -44,7 +44,8 @@ jobs:
           with ZipFile(path) as z:
               assert 'word/document.xml' in z.namelist()
           doc = Document(path)
-          assert len(doc.tables) >= 6
+          # Two page-heading tables and two progress tables; summary boxes are nested tables.
+          assert len(doc.tables) >= 4, len(doc.tables)
           text = '\n'.join(p.text for p in doc.paragraphs) + '\n' + '\n'.join(
               c.text for t in doc.tables for row in t.rows for c in row.cells
           )
@@ -52,8 +53,9 @@ jobs:
                     '2024年2月26日', '96学时', '48学时', '模型制作实践（二）与课程总结']
           for item in checks:
               assert item in text, item
-          for week in range(1,17):
-              assert str(week) in text
+          progress_tables = [t for t in doc.tables if len(t.columns) == 17]
+          assert len(progress_tables) == 2, len(progress_tables)
+          assert all(len(t.rows) == 10 for t in progress_tables), [len(t.rows) for t in progress_tables]
           print('DOCX OK:', path, path.stat().st_size, 'tables=', len(doc.tables))
           PY
 
@@ -75,15 +77,13 @@ jobs:
           assert len(images) == 2, images
           for image_path in images:
               im = Image.open(image_path).convert('L')
-              # Content bounding box relative to white background.
               bg = Image.new('L', im.size, 255)
               diff = ImageChops.difference(im, bg)
               bbox = diff.point(lambda p: 255 if p > 18 else 0).getbbox()
               assert bbox is not None, image_path
               left, top, right, bottom = bbox
-              # Require a safe printable margin on all sides and reject mostly blank pages.
-              assert left >= 8 and top >= 8 and right <= im.width-8 and bottom <= im.height-8, (image_path, bbox, im.size)
-              coverage = ((right-left)*(bottom-top))/(im.width*im.height)
+              assert left >= 8 and top >= 8 and right <= im.width - 8 and bottom <= im.height - 8, (image_path, bbox, im.size)
+              coverage = ((right - left) * (bottom - top)) / (im.width * im.height)
               assert coverage > 0.35, (image_path, coverage)
               print(image_path, im.size, bbox, coverage)
           PY
