@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   generate-progress:
@@ -88,16 +88,6 @@ jobs:
               assert coverage > 0.35, (image_path, coverage)
               print(image_path, im.size, bbox, coverage)
           PY
-
-      - name: Commit generated file
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add generated/建筑设计基础2/*.docx
-          if ! git diff --cached --quiet; then
-            git commit -m 'Generate architecture design foundation II progress table'
-            git push origin HEAD:${{ github.head_ref || github.ref_name }}
-          fi
 
       - name: Upload DOCX
         uses: actions/upload-artifact@v4
